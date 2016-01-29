@@ -1,5 +1,6 @@
 require('node_modules/chai').should();
 import Bin from 'bin';
+import parsers from 'bin/lib/parsers';
 
 let LS = localStorage;
 let str = obj => JSON.stringify(obj);
@@ -29,6 +30,19 @@ describe("lib/bin", () => {
     });
   });
 
+  it("Loads objects from localStorage.", () => {
+    LS.setItem('foo::1', str({foo: 'bar'}));
+    bin.loadLS();
+    bin.get('foo::1').should.eql({foo: 'bar'});
+  });
+
+  it("Empties the cache when reloading localStorage.", () => {
+    bin.cache['foo::1'] = {foo: 'bar'};
+    bin.get('foo', 1).should.eql({foo: 'bar'});
+    bin.reloadLS();
+    (bin.get('foo', 1) === undefined).should.be.true;
+  });
+
   it("Gets all objects from a bin.", () => {
     bin.set('cats', '1', {name: 'mittens'});
     bin.set('cats', '2', {name: 'buttons'});
@@ -45,14 +59,30 @@ describe("lib/bin", () => {
     ]);
   });
 
+  it("Clears the cache and localStorage.", () => {
+    LS.setItem('a::1', str({a: 1}));
+    bin = new Bin();
+    bin.cache['a::2'] = {a: 2};
+    bin.clear();
+    Object.keys(LS).length.should.eql(0);
+    Object.keys(bin.cache).length.should.eql(0);
+  });
+
   it("Constructor populates cache with localStorage entries.", () => {
-    LS.setItem('person', str({name: 'george'}));
+    LS.setItem('person::1', str({name: 'george'}));
     let bin = new Bin();
     bin.cache.should.eql({
-      person: {
+      'person::1': {
         name: 'george'
       }
     });
+  });
+
+  it("Throws an error when parsing bad JSON.", () => {
+    LS.setItem('a::1', {a:1});  // This is stored as "[object Object]"
+    (() => {
+      bin.reloadLS();
+    }).should.throw(SyntaxError);
   });
 
   it("Defines a custom separator.", () => {
@@ -61,14 +91,20 @@ describe("lib/bin", () => {
     parse(localStorage.getItem('foo/bar--qux')).should.eql({you: 'there'});
   });
 
+  it("Throws an error when a parser isn't called with exactly two arguments.", () => {
+    (() => parsers.urlParser()).should.throw();
+    (() => parsers.urlParser({})).should.throw();
+    (() => parsers.urlParser({sep: '::'}, 'a::b')).should.not.throw();
+  });
+
   it("Calls .get() with a parser defined.", () => {
-    let bin = new Bin({parser: Bin.URL_PARSER});
+    let bin = new Bin({parser: parsers.urlParser});
     bin.set('all/the/people/', '1', {yo: 'there'});
     bin.get('all/the/people/1').should.eql({yo: 'there'});
   });
 
   it("Calls .set() with a parser defined.", () => {
-    let bin = new Bin({parser: Bin.URL_PARSER});
+    let bin = new Bin({parser: parsers.urlParser});
     bin.set('all/the/people/1', {hey: 'you'});
     bin.get('all/the/people/1').should.eql({hey: 'you'});
     bin.get('all/the/people/', 1).should.eql({hey: 'you'});
