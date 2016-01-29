@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+webpack-dev-server --content-base test --port $1
