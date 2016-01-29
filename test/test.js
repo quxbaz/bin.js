@@ -15,6 +15,11 @@ describe("lib/bin", () => {
     bin = new Bin();
   });
 
+  it("Checks that Bin.<parser> is the actual <parser>.", () => {
+    Bin.defaultParser.should.eql(parsers.defaultParser);
+    Bin.urlParser.should.eql(parsers.urlParser);
+  });
+
   it("Stores an object in localStorage.", () => {
     bin.set('cats', 'grumbles', {
       name: 'grumbles',
